@@ -92,3 +92,27 @@ def guardar_perfilado(perfilado: dict, ruta: str | Path) -> None:
         json.dumps(perfilado, ensure_ascii=False, indent=2, default=str),
         encoding="utf-8",
     )
+
+def comparar_calidad(antes: dict, despues: dict, resumen: dict) -> dict:
+    """Compara perfilados antes/después. Genera métricas para la fase de reporte (M4)."""
+    return {
+        "antes": {
+            "filas": antes["filas"],
+            "duplicados_exactos": antes["duplicados_exactos"],
+            "campos_con_nulos": {
+                c: m["nulos"] for c, m in antes["metricas_por_campo"].items() if m["nulos"] > 0
+            },
+        },
+        "despues": {
+            "filas": despues["filas"],
+            "duplicados_exactos": despues["duplicados_exactos"],
+            "campos_con_nulos": {
+                c: m["nulos"] for c, m in despues["metricas_por_campo"].items() if m["nulos"] > 0
+            },
+        },
+        "efecto_por_etapa": {
+            "imputados": resumen.get("imputados", 0),
+            "rechazados": resumen.get("rechazados", 0),
+            "duplicados_omitidos": resumen.get("duplicados_omitidos", 0),
+        },
+    }

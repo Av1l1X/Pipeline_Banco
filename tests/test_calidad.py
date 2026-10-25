@@ -50,3 +50,17 @@ def test_detectar_conflictos_misma_clave_identico_contenido():
     assert len(r["candidatos"]) == 1
     assert len(r["rechazados"]) == 1
     assert r["rechazados"][0]["motivo"] == "DUPLICADO_NORMALIZADO"
+
+
+
+from src.calidad import comparar_calidad
+
+def test_comparar_calidad():
+    antes = {"filas": 10, "duplicados_exactos": 2, "metricas_por_campo": {"monto": {"nulos": 5}}}
+    despues = {"filas": 8, "duplicados_exactos": 0, "metricas_por_campo": {"monto": {"nulos": 0}}}
+    resumen = {"imputados": 5, "rechazados": 0, "duplicados_omitidos": 2}
+    
+    reporte = comparar_calidad(antes, despues, resumen)
+    assert reporte["antes"]["duplicados_exactos"] == 2
+    assert reporte["despues"]["duplicados_exactos"] == 0
+    assert reporte["efecto_por_etapa"]["imputados"] == 5
