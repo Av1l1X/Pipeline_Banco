@@ -1,0 +1,9 @@
+export const $=s=>document.querySelector(s);
+export const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+export const mxn=v=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(Number(v||0));
+export async function api(path,options={}){const r=await fetch(path,options);let data;try{data=await r.json()}catch{throw Error('Respuesta inesperada del servidor')}if(!r.ok)throw Error(typeof data.detail==='string'?data.detail:JSON.stringify(data.detail));return data}
+export const post=(path,data)=>api(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+export function flash(message,error=false){const n=$('#notice');n.textContent=message;n.className='notice'+(error?' error':'');n.classList.remove('hidden');n.setAttribute('role',error?'alert':'status')}
+export function sidebar(active){$('#sidebar').innerHTML=`<a class="brand" href="/"><span class="brand-mark">↗</span>Pipeline Banco</a><small style="margin-top:14px">Laboratorio de datos</small><nav><a href="/" class="${active==='dashboard'?'active':''}">◫ &nbsp; Centro de control</a><a href="/atm" class="${active==='atm'?'active':''}">▣ &nbsp; Cajero ATM</a><a href="/digital" class="${active==='digital'?'active':''}">↗ &nbsp; Transferencia digital</a></nav><div class="side-foot"><span class="status-dot"></span>Entorno académico local<br>Avilix · Maki · Leo<br>Ingeniería de Datos · 2026</div>`}
+export function resultText(r){return `${r.already_processed?'Solicitud ya procesada. ':''}${r.resultado||r.status}. ${r.inserted??0} insertadas · ${r.quarantine??0} en cuarentena · ${(r.already_loaded??0)+(r.internal_duplicates??0)} omitidas. Ejecución: ${r.execution_id||r.version}`}
+export function nowLocal(){const d=new Date(Date.now()-6*3600000);return d.toISOString().slice(0,19)+'-06:00'}
