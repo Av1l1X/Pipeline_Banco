@@ -49,8 +49,12 @@ def _json_default(value: Any) -> str:
 
 
 def _json_dumps(value: Any) -> str:
+    def keys(item):
+        if isinstance(item, dict): return {str(k): keys(v) for k, v in item.items()}
+        if isinstance(item, (list, tuple)): return [keys(v) for v in item]
+        return item
     return json.dumps(
-        value,
+        keys(value),
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
@@ -129,6 +133,7 @@ def _insert_execution(
 
 
 def initialize_database(db_path: str | Path) -> sqlite3.Connection:
+    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(str(db_path))
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
@@ -246,6 +251,20 @@ def initialize_database(db_path: str | Path) -> sqlite3.Connection:
         """
     )
     connection.commit()
+    connection.executescript('''
+        CREATE TABLE IF NOT EXISTS evidencia_lotes (
+            ejecucion_id TEXT PRIMARY KEY REFERENCES ejecuciones(id),
+            datos TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS reprocesamientos (
+            rechazo_id INTEGER NOT NULL REFERENCES cuarentena_errores(id),
+            ejecucion_id TEXT NOT NULL REFERENCES ejecuciones(id),
+            PRIMARY KEY (rechazo_id, ejecucion_id)
+        );
+        CREATE TABLE IF NOT EXISTS catalogo_activo (
+            id INTEGER PRIMARY KEY CHECK(id=1), version TEXT REFERENCES catalogo_versiones(version)
+        );
+    ''')
     return connection
 
 
@@ -459,7 +478,7 @@ def persist_batch(
         connection.close()
 
     counts = {
-        "read": len(clean_records) + len(quarantine_records),
+        "read": len(clean_records) + len(quarantine_records) + len(metadata.get('omitidos', [])),
         "inserted": 0,
         "quarantine": 0,
         "internal_duplicates": 0,
@@ -467,6 +486,9 @@ def persist_batch(
     }
     try:
         with transactional_connection(db_path) as connection:
+            for item in metadata.get('omitidos', []):
+                _insert_omitted(connection, execution_id, source, item['record'], item['resultado'], item.get('existing_id'))
+                counts['internal_duplicates' if item['resultado'] == 'DUPLICADO_INTERNO' else 'already_loaded'] += 1
             catalog_version = metadata.get("catalog_version")
             grouped: dict[str, list[dict[str, Any]]] = {}
             for record in clean_records:
@@ -559,6 +581,11 @@ def persist_batch(
                 )
                 counts["quarantine"] += 1
 
+            connection.execute('INSERT INTO evidencia_lotes VALUES (?, ?)', (execution_id, _json_dumps(metadata)))
+            for rejection_id in metadata.get('reprocesar_ids', []):
+                connection.execute('INSERT INTO reprocesamientos VALUES (?, ?)', (rejection_id, execution_id))
+                if counts['quarantine'] == 0 and counts['inserted'] + counts['already_loaded'] > 0:
+                    connection.execute("UPDATE cuarentena_errores SET estado_seguimiento='RESUELTA' WHERE id=?", (rejection_id,))
             connection.execute(
                 """
                 UPDATE ejecuciones
