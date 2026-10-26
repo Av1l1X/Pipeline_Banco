@@ -65,6 +65,8 @@ def _run(rows,source,db,metadata,identity,reference=None):
         r['transformaciones'].extend(r.get('_cambios_imputacion',[]))
         if source=='ATM':r['comision_aplicada']=money(r['comision_aplicada'])
     capped=aplicar_iqr(filled['candidatos'],reference.get('iqr',{}) if reference is not None else None)
+    for r in capped['candidatos']:
+        r['monto_analitico_mxn']=money(r['monto_analitico_mxn'])
     scaled=escalar_segmentar(capped['candidatos'],reference.get('escala',{}) if reference is not None else None)
     bad.extend(_error(r) for r in scaled['rechazados'])
     for r in scaled['candidatos']:
@@ -86,6 +88,12 @@ def _run(rows,source,db,metadata,identity,reference=None):
     assert len(rows)==len(scaled['candidatos'])+len(bad)+len(omitted)
     result=persist_batch(db,source,scaled['candidatos'],bad,identity_hash=identity,metadata=metadata)
     result['resultado']='EN_CUARENTENA' if result['quarantine'] else 'INSERTADA' if result['inserted'] else 'YA_CARGADA'
+    conn=initialize_database(db)
+    try:
+        result['motivos']=sorted({reason for row in conn.execute(
+            'SELECT motivo_rechazo_cuarentena FROM cuarentena_errores WHERE ejecucion_id=?',
+            (result['execution_id'],)) for reason in row[0].split('; ')})
+    finally:conn.close()
     return result
 
 

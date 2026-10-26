@@ -2,6 +2,7 @@
 import csv
 import hashlib
 import json
+from zipfile import BadZipFile
 from pathlib import Path
 from openpyxl import load_workbook
 
@@ -19,14 +20,17 @@ def leer_fuente(ruta, fuente):
     raw = ruta.read_bytes()
     ext = ruta.suffix.lower()
     if fuente == 'DIGITAL' and ext == '.json':
-        rows = json.loads(raw.decode('utf-8-sig'))
+        rows = json.loads(raw.decode('utf-8-sig'), parse_constant=lambda value: (_ for _ in ()).throw(ValueError('Número JSON no finito: '+value)))
         if not isinstance(rows, list):
             raise ValueError('El JSON debe contener una lista')
     elif fuente in ('ATM', 'CATALOGO') and ext in ('.csv', '.xlsx'):
         if ext == '.csv':
             matrix = list(csv.reader(raw.decode('utf-8-sig').splitlines()))
         else:
-            wb = load_workbook(ruta, read_only=True, data_only=False)
+            try:
+                wb = load_workbook(ruta, read_only=True, data_only=False)
+            except BadZipFile as exc:
+                raise ValueError('El archivo no es un libro XLSX válido') from exc
             try:
                 if 'transacciones_atm' not in wb.sheetnames:
                     raise ValueError('Falta la hoja transacciones_atm')
