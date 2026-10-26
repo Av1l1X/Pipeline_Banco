@@ -16,6 +16,8 @@ python -m venv .venv
 
 Abre **http://127.0.0.1:8765**. Mantén esa terminal abierta; Ctrl+C detiene el servidor. No necesitas activar el entorno virtual. También puedes ejecutar `iniciar.cmd` después de instalar las dependencias: carga las fuentes originales de manera idempotente e inicia la aplicación.
 
+El archivo `requirements-lock.txt` registra las versiones verificadas; puedes instalarlo con `-r requirements-lock.txt` para reproducir este entorno.
+
 La base de trabajo queda en `outputs/pipeline.sqlite`. Los originales canónicos están en `datasets/`. Los CSV/JSON de la raíz se conservan por el historial de los compañeros; no son la ruta del inicio rápido. El XLSX entregado por el usuario es la fuente ATM usada para los resultados oficiales; el lector también admite CSV con los mismos encabezados.
 
 ## Pantallas

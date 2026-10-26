@@ -9,7 +9,7 @@
 | integracion.py | Normalización, USD/MXN, fechas, catálogo → candidatos/rechazados | Avilix |
 | limpieza.py | Candidatos → imputación y capping; parámetros opcionales persistidos | Maki; adaptación de integración por Avilix |
 | transformacion.py | Candidatos → MinMax, segmento y referencia | Avilix |
-| models.py / validation.py | Tipos y validadores Pydantic → registro o lista de errores | Leo |
+| validation.py | Tipos y validadores Pydantic → registro o lista de errores | Leo |
 | persistence.py | Lote → transacción atómica, conteos e identidad | Leo; ampliación de integración por Avilix |
 | pipeline.py | Orquesta lotes, manuales y reprocesos bajo un bloqueo local | Avilix |
 | catalogo.py | Valida y activa snapshots completos del catálogo | Avilix |

@@ -1,0 +1,7 @@
+{
+  "datasets\\catalogo_cuentas.csv": "ef11dd8d86b4016b452028df917fdff9e936f52df1ec34eb75ff0acb8293a7d7",
+  "datasets\\transacciones_atm.xlsx": "cc14c30640e94462a737900eff16d1a1450b34ea59f38dee7d3d9c68af6fce25",
+  "datasets\\transferencias_digitales.json": "8cb8ad47ad95533afe3df4640cb446b5e6d8f5a0b110d4aac35df5712ef68027",
+  "entrega\\pipeline_banco.sqlite": "4dc9d33f9d37da03118a7a6f4de9bbe5011ddb3535775f584ae44f5560570a8f",
+  "entrega\\resultados.json": "15c5a5a115ee026258f74045447578aaa2831c295b717ab04aeb6759d416b66e"
+}
