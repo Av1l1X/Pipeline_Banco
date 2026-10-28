@@ -11,7 +11,7 @@
 | transformacion.py | Candidatos → MinMax, segmento y referencia | Avilix |
 | validation.py | Tipos y validadores Pydantic → registro o lista de errores | Leo |
 | persistence.py | Lote → transacción atómica, conteos e identidad | Leo; ampliación de integración por Avilix |
-| pipeline.py | Orquesta lotes, manuales y reprocesos bajo un bloqueo local | Avilix |
+| pipeline.py | Orquesta lotes y reprocesos bajo un bloqueo local | Avilix |
 | catalogo.py | Valida y activa snapshots completos del catálogo | Avilix |
 | consultas.py / api.py / web | Consulta y presentación de datos reales persistidos | Avilix |
 
@@ -34,10 +34,11 @@ Una ejecución se abre antes de la transacción de filas. Al fallar, las filas d
 | Método / ruta | Uso |
 |---|---|
 | GET /api/control | Snapshot; filtros q, fuente, origen_ingreso, tipo_operacion, estado_operacion, ejecucion_id, tipo_fecha, desde, hasta |
-| GET /api/cuentas | Catálogo activo |
-| GET /api/referencias?fuente=ATM | Lotes completados con filas aptas de la fuente |
 | POST /api/cargas | Multipart: fuente y archivo |
-| POST /api/transacciones | JSON: solicitud_id, fuente, datos_origen, referencia_ejecucion |
-| POST /api/cuarentena/{id}/reprocesar | JSON: correccion opcional, referencia_ejecucion opcional |
+| GET /api/estado | Catálogo activo, formatos y columnas esperadas |
+| POST /api/sesiones | Crea y selecciona una base vacía independiente |
+| POST /api/archivos/vista-previa | Lee muestra y conteo del archivo seleccionado, sin ingerirlo |
 
-La clave de solicitud manual debe ser nueva si se cambia el contenido. La respuesta incluye execution_id, conteos, resultado, already_processed y motivos. Validaciones de estructura del archivo o solicitud producen HTTP 422; un rechazo de fila produce HTTP 200 y resultado EN_CUARENTENA. La interfaz distingue ambos casos. `/docs` muestra el contrato OpenAPI.
+Las cargas inválidas como archivo producen HTTP 422; un rechazo por fila produce HTTP 200 con los conteos del lote. La interfaz acepta archivos seleccionados y conserva las sesiones anteriores. Procesa el catálogo antes que las operaciones; una vista previa no valida cada registro ni activa el catálogo. Las etapas se obtienen de evidencia_lotes después de confirmar la transacción. No hay endpoints de simulación bancaria.
+
+El reprocesamiento de cuarentena se conserva en consola: `python -m src.cli reprocesar --id ID --bd RUTA`.

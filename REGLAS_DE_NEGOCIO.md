@@ -1,15 +1,15 @@
 # Reglas de negocio del pipeline ETL bancario
 
-**Materia:** Ingeniería de Datos (ATD-2602), Unidad 2.  
-**Dominio:** Fintech y transacciones bancarias, Grupo 2 (LCNT).  
-**Fecha:** 23 de octubre de 2026.  
-**Versión:** 1.4.
+**Materia:** Ingeniería de Datos (ATD-2602), Unidad 2.
+**Dominio:** Fintech y transacciones bancarias, Grupo 2 (LCNT).
+**Fecha:** 27 de octubre de 2026.
+**Versión:** 1.5.
 
 ## 1. Objetivo y alcance
 
 Integrar las transacciones de cajeros ATM y transferencias digitales con el catálogo de cuentas. El proceso debe diagnosticar la calidad, transformar los datos y separar los registros conformes de los que requieren cuarentena, sin detener todo el lote por un registro incorrecto.
 
-El sistema admite los archivos del proyecto y nuevos lotes con la misma estructura. Cada carga agrega únicamente operaciones válidas que aún no existen en la base de datos. El procesamiento puede ejecutarse desde consola. Como extensión del proyecto, una interfaz visual permite consultar un dashboard, cargar archivos e ingresar transacciones individuales ATM o digitales. Ambos medios utilizan los mismos módulos de transformación, validación y persistencia.
+El sistema admite los archivos del proyecto y nuevos lotes con la misma estructura. Cada carga agrega únicamente operaciones válidas que aún no existen en la base de datos. El procesamiento puede ejecutarse desde consola. La interfaz permite cargar archivos, observar las etapas confirmadas y consultar resultados. El alcance no incluye ingreso individual de operaciones ni simuladores.
 
 Este documento establece las reglas de limpieza, integración, transformación, validación y persistencia del proyecto, junto con su justificación técnica y los criterios para verificar su cumplimiento.
 
@@ -115,7 +115,7 @@ No se afirmará que un faltante es MCAR o MAR únicamente por observar un valor 
 
 Las medianas se calculan sobre registros únicos, observados, convertibles y compatibles con las reglas básicas; nunca sobre valores ya imputados. Para montos se usan valores positivos; para comisiones se admiten ceros. Cada grupo debe tener al menos cinco observaciones elegibles. Si no alcanza ese mínimo, se envía el faltante a cuarentena como `SIN_BASE_PARA_IMPUTAR`; no se aplica una mediana global de respaldo.
 
-En cargas de archivos, las estadísticas se calculan con los registros nuevos elegibles de la ejecución actual, sin incorporar operaciones ya cargadas ni el historial de la base de datos. La misma población se utiliza para ajustar los parámetros de IQR, Min-Max y segmentación, respetando las exclusiones propias de cada técnica. Si no hay registros elegibles, no se calculan parámetros y se registra el grupo vacío. El ingreso manual y su reprocesamiento utilizan la referencia estadística definida en la sección 16.2.
+En cargas de archivos, las estadísticas se calculan con los registros nuevos elegibles de la ejecución actual, sin incorporar operaciones ya cargadas ni el historial de la base de datos. La misma población se utiliza para ajustar los parámetros de IQR, Min-Max y segmentación, respetando las exclusiones propias de cada técnica. Si no hay registros elegibles, no se calculan parámetros y se registra el grupo vacío.
 
 El mínimo de cinco es un criterio operativo para evitar imputaciones basadas en grupos demasiado pequeños; no constituye una garantía estadística. Se guardan tamaño del grupo, mediana, campo imputado y cantidad de filas afectadas. La mediana se prefiere a la media por los extremos observados; el reporte compara ambas en los grupos utilizados.
 
@@ -260,7 +260,7 @@ La opción de reprocesar permite seleccionar registros no resueltos y volver a e
 
 Cada intento genera una nueva ejecución enlazada con el rechazo anterior. Si el registro es válido, se inserta únicamente si su clave global no existe; si coincide con una operación existente, se registra como `YA_CARGADA`. Si presenta un conflicto, permanece en cuarentena.
 
-Los rechazos conservan su historial y un estado de seguimiento `ABIERTA` o `RESUELTA`. Un rechazo se marca como resuelto únicamente cuando el intento enlazado termina correctamente como inserción o repetición idéntica. Esta actualización se confirma en la misma transacción que el resultado del reprocesamiento. Para rechazos de archivos, los parámetros estadísticos se calculan con el lote seleccionado, sin usar silenciosamente las filas históricas. Los rechazos de origen manual se procesan por separado con la referencia de la sección 16.2.
+Los rechazos conservan su historial y un estado de seguimiento `ABIERTA` o `RESUELTA`. Un rechazo se marca como resuelto únicamente cuando el intento enlazado termina correctamente como inserción o repetición idéntica. Esta actualización se confirma en la misma transacción que el resultado del reprocesamiento. Para rechazos de archivos, los parámetros estadísticos se calculan con el lote seleccionado, sin usar silenciosamente las filas históricas.
 
 ## 13. Orden acordado del proceso
 
@@ -295,168 +295,20 @@ El orden técnico se justifica porque no es válido comparar monedas distintas, 
 - Verificar que una segunda carga no recalcula los montos analíticos, segmentos ni parámetros de las transacciones previamente almacenadas.
 - Las pruebas usan copias o datos sintéticos y no modifican los archivos originales.
 
-## 15. Interfaz visual y dashboard
+## 15. Demostración y resultados
 
-La interfaz constituye una extensión de los requisitos académicos y se conecta al pipeline existente. No contiene una segunda implementación de las reglas ni inserta directamente en la tabla de transacciones limpias.
+La interfaz ofrece entrada de archivos, evidencia del proceso y resultados: limpias, cuarentena, duplicados e historial. Cada detalle conserva original, transformaciones y parámetros. Las cifras de etapas describen poblaciones diferentes y no se suman entre sí.
 
-### 15.1 Indicadores y seguimiento
+Crear una sesión vacía genera una base nueva en outputs/sesiones sin borrar las anteriores ni modificar la entrega. La entrada permite seleccionar archivos con cualquier nombre y los esquemas admitidos. La vista previa no ingiere datos. La cola procesa primero el catálogo y después las operaciones mediante el mismo pipeline de consola; ante error de archivo se detiene y conserva las cargas confirmadas. Las gráficas se calculan con los registros reales bajo los filtros visibles. No se simula progreso por etapa.
 
-- Mostrar filas procesadas, nuevas operaciones aceptadas, filas en cuarentena, duplicados internos y operaciones ya cargadas, con filtros por fuente, ejecución, origen de ingreso y fecha de procesamiento.
-- Distinguir fecha de procesamiento de fecha de la transacción; el filtro activo debe indicar cuál utiliza.
-- Mostrar el estado real de cada ejecución: `EN_PROCESO`, `COMPLETADA`, `FALLIDA` o `SIN_REGISTROS`. Una carga idéntica omitida muestra el resumen de su ejecución anterior.
-- Durante el procesamiento, mostrar únicamente fases y avances comunicados por el pipeline. No presentar estimaciones como cantidades definitivas ni indicar éxito antes del commit.
-- Mostrar distribución de motivos de cuarentena, calidad antes/después y transformaciones aplicadas. Un registro puede tener varios motivos; el total de motivos no se presenta como total de registros rechazados.
-- Separar indicadores de calidad de datos de estados bancarios. `ACEPTADA` por el pipeline no significa `EXITOSA` o `LIQUIDADA` por el banco.
-- Los conteos de procesamiento representan intentos por ejecución; el total de operaciones almacenadas representa claves únicas de `transacciones_limpias`. Un reprocesamiento no debe inflar ese total.
-- Las sumas monetarias utilizan `monto_mxn`, no el importe recortado. Se muestran por tipo de operación y estado bancario; no se presentan como saldo disponible, utilidad ni movimiento neto de una cuenta.
-- No mezclar en una misma comparación escalas o segmentos calculados con referencias estadísticas diferentes. Mostrar la ejecución o referencia de cálculo.
-- Una selección sin registros muestra ceros y el mensaje `Sin registros para los filtros seleccionados`, sin generar porcentajes por división entre cero.
+Los datos bancarios ATM y digitales se conservan como fuentes académicas. Se eliminan las pantallas, endpoints y lógica de ingreso individual de los simuladores. El estado bancario sigue siendo distinto de la calidad del registro.
 
-### 15.2 Carga desde la interfaz
+## 16. Presentación
 
-El usuario selecciona ATM o digital y adjunta el archivo. Se aplican los formatos, esquemas, controles de duplicación y reglas de carga definidos en la sección 12. La interfaz muestra el resumen confirmado y permite consultar el detalle de las filas rechazadas y omitidas. Una falla conserva los datos anteriores y muestra su causa, sin reportar inserciones que fueron revertidas.
-
-### 15.3 Organización del dashboard de control
-
-El dashboard presenta las siguientes áreas:
-
-| Área | Contenido y comportamiento |
-|---|---|
-| Resumen superior | Total de operaciones limpias almacenadas, rechazos abiertos en cuarentena, filas omitidas por duplicación y ejecuciones completadas. Cada indicador muestra su alcance y unidad: operaciones únicas, rechazos o ejecuciones. |
-| Acciones principales | Accesos visibles a `Cargar archivo`, `Abrir cajero ATM` y `Abrir transferencia digital`. |
-| Filtros | Fuente ATM/digital, intervalo de fechas con selección explícita de fecha de transacción o procesamiento, ejecución, tipo de operación, estado bancario y origen archivo/manual. |
-| Transacciones limpias | Tabla principal con todas las operaciones conformes, consultables mediante paginación, búsqueda por identificador o cuenta y ordenamiento por fecha o monto. |
-| Cuarentena | Tabla de registros rechazados con motivos, ejecución de origen y estado `ABIERTA` o `RESUELTA`; acceso al detalle y al reprocesamiento. |
-| Historial de cargas | Ejecución, archivo o ingreso manual, fuente, fecha de procesamiento, cantidades insertadas, rechazadas y omitidas, y estado de la ejecución. |
-
-Los filtros aplicables se mantienen consistentes entre tablas, indicadores y gráficas. Si una vista no admite un filtro, debe indicarlo explícitamente. Las filas rechazadas sin fecha o estado interpretable permanecen consultables mediante la categoría `Sin dato válido`; no se excluyen silenciosamente de los controles de calidad. La paginación afecta únicamente la presentación y no limita los totales calculados.
-
-El indicador de duplicados desglosa `duplicados_internos` y `ya_cargadas`. Los conflictos de identificador pertenecen a cuarentena, no a las filas omitidas. El historial incluye ejecuciones fallidas, vacías y en proceso, aunque el indicador de ejecuciones completadas solo cuenta las confirmadas.
-
-### 15.4 Tabla principal y detalle de transacción
-
-La tabla de transacciones limpias muestra, como mínimo: identificador, fecha y hora de la transacción, cuenta, fuente, tipo de operación, monto en MXN, estado bancario, origen de ingreso e identificador de ejecución.
-
-Seleccionar una fila abre un panel de detalle que presenta:
-
-- Datos de origen y valores finales, con etiquetas que permitan compararlos campo por campo.
-- Moneda e importe originales, tasa utilizada y monto convertido a MXN.
-- Campos imputados, valores asignados y grupo o referencia que justificó la imputación.
-- Monto analítico, límites de capping y señal de outlier, diferenciados del importe monetario de referencia.
-- Monto normalizado, segmento y ejecución que proporcionó sus parámetros.
-- Fuente, archivo o formulario, posición original, versión del catálogo, versión de reglas y fecha de procesamiento.
-
-Cuando no hubo cambios, el panel indica `Sin transformaciones en este campo`; no inventa correcciones para completar la vista. Los campos que no corresponden a la fuente se identifican como `No aplica`. El detalle de cuarentena muestra el registro original y los motivos de rechazo; no presenta un registro incompleto como limpio.
-
-### 15.5 Gráficas de control
-
-Se incluyen dos gráficas principales:
-
-1. **Resultado del procesamiento por ejecución:** barras con nuevas filas limpias, filas en cuarentena y filas omitidas. Las omitidas permiten distinguir duplicados internos de operaciones ya cargadas. Los conteos representan el resultado confirmado de cada ejecución, no el estado actual de resolución de sus rechazos.
-2. **Motivos de rechazo más frecuentes:** barras por código de error con conteo de registros que presentan cada motivo, contando una fila una sola vez por código. Una fila puede aparecer en varias categorías; la gráfica indica que las categorías no son excluyentes.
-
-Las gráficas no contabilizan como exitosas las inserciones revertidas. Un rechazo resuelto permanece en las métricas históricas de su ejecución original, mientras que el indicador de cuarentena abierta refleja su estado actual. Esta diferencia se identifica mediante títulos y etiquetas.
-
-### 15.6 Verificación del dashboard
-
-- Comprobar que búsqueda, ordenamiento y paginación permiten consultar todas las operaciones limpias sin alterar los registros.
-- Conciliar indicadores, tablas y gráficas con consultas a la base de datos bajo los mismos filtros.
-- Verificar que el detalle muestre los valores originales y finales realmente almacenados, incluidos casos con imputación, conversión de USD y capping.
-- Verificar la distinción entre totales históricos de rechazos, rechazos abiertos y operaciones únicas almacenadas después de un reprocesamiento.
-- Comprobar que las tres acciones principales abran la experiencia correspondiente y que las vistas sin resultados muestren un estado vacío comprensible.
-
-## 16. Ingreso manual de transacciones
-
-### 16.1 Experiencias de ingreso y trazabilidad
-
-- La interfaz ofrece dos accesos visuales independientes: `Cajero ATM` y `Transferencia digital`. Cada experiencia captura los campos de origen correspondientes al esquema de la sección 12.1; no se utiliza un formulario genérico que únicamente cambie sus etiquetas.
-- La transacción debe tener identificador de operación, cuenta y fecha antes del envío. En una nueva operación simulada se pueden generar explícitamente el identificador y la fecha según la sección 16.1.3. Se permiten los faltantes sujetos a imputación definidos en la sección 7; no se reconstruyen por suposición cuentas, CLABEs ni metadatos ausentes de registros importados.
-- La cuenta se selecciona del catálogo vigente. La validación del servidor vuelve a comprobar su existencia, aunque el formulario ya la haya comprobado.
-- ATM utiliza MXN; digital permite MXN o USD. Las CLABEs se capturan como texto para conservar ceros iniciales.
-- El formulario no solicita monto normalizado, segmento ni monto recortado: son resultados calculados por el pipeline.
-- Cada envío genera un lote de una fila con `origen_ingreso = MANUAL`, `fuente = ATM` o `DIGITAL`, `archivo_origen = FORMULARIO` y posición 1. Se conserva el contenido enviado antes de transformarlo. Los archivos usan `origen_ingreso = ARCHIVO`.
-- Las comprobaciones inmediatas del formulario ayudan a corregir datos, pero no sustituyen la validación del pipeline. Un envío recibido y procesado que incumpla las reglas queda en cuarentena con su motivo.
-- La clave global sigue siendo `(fuente, id_transaccion)`. Una operación introducida manualmente y luego incluida en un archivo se reconoce como la misma operación si su contenido coincide.
-- Cada envío lleva un identificador de solicitud único. Reintentar la misma solicitud devuelve su resultado confirmado; cambiar su contenido requiere otra solicitud. El botón se desactiva durante el envío para evitar dobles clics, sin depender de esa medida como único control.
-
-#### 16.1.1 Experiencia física: simulador de cajero ATM
-
-La vista representa un cajero con pantalla central, botones de selección junto a la pantalla y teclado numérico. El usuario interactúa mediante pasos y controles propios de un cajero:
-
-1. Seleccionar una cuenta del catálogo y el identificador del cajero.
-2. Elegir `RETIRO`, `DEPOSITO`, `PAGO_SERVICIOS` o `CONSULTA_SALDO` en la pantalla del cajero.
-3. Para operaciones monetarias, seleccionar un importe sugerido o introducir otro con el teclado numérico, incluyendo centavos. La consulta de saldo utiliza monto cero y no solicita un importe.
-4. Revisar cuenta, operación, importe y comisión antes de confirmar.
-5. Confirmar el registro y visualizar un comprobante de simulación con identificador de operación, fecha y resultado del procesamiento.
-
-El teclado incluye números, separador decimal y controles visibles `CORREGIR`, `CANCELAR` y `CONFIRMAR`. Los botones laterales seleccionan opciones de la pantalla. También se admite teclado físico, foco visible y etiquetas accesibles; la interacción no depende exclusivamente del color.
-
-`CORREGIR` permite editar la entrada antes del envío. `CANCELAR` abandona una operación no enviada sin insertarla en la base de datos. Una vez enviado el registro, cerrar la vista no revierte su procesamiento.
-
-La comisión, fecha, identificador de transacción y resultado bancario simulado se muestran en un panel de datos de la simulación, separado de la pantalla principal y editable antes de confirmar. El resultado admite los estados ATM definidos en la sección 9. No se calculan fondos disponibles ni se inventa un saldo: una consulta se registra como operación de monto cero y muestra que el catálogo no contiene saldos.
-
-El cajero no solicita tarjeta real, PIN ni credenciales bancarias. Su apariencia reproduce la interacción de un ATM; sus acciones generan registros académicos y no entregan ni reciben dinero.
-
-#### 16.1.2 Experiencia digital: transferencia en línea
-
-La vista utiliza el diseño de una app bancaria: tarjetas de cuenta, campos agrupados, resumen del importe y una pantalla de revisión. Su recorrido es:
-
-1. Seleccionar la cuenta de origen del catálogo.
-2. Introducir la CLABE del destinatario y, de forma opcional, su correo de notificación.
-3. Capturar importe, moneda MXN o USD y concepto.
-4. Revisar los datos y, para USD, visualizar el equivalente en MXN con la tasa académica de 19.50 claramente indicada.
-5. Confirmar el registro y visualizar un comprobante de simulación con sus identificadores y resultado del procesamiento.
-
-La CLABE se presenta y conserva como texto. La interfaz no inventa un nombre de beneficiario ni afirma haber verificado una cuenta bancaria a partir de la CLABE. El correo capturado se almacena como dato; no se envían notificaciones reales.
-
-La fecha, el identificador de transferencia, la plataforma y el estado bancario simulado se capturan en un panel de datos de la simulación. Las plataformas admitidas son `App Android`, `App iOS`, `Web Banking` y `API Empresarial`; el estado utiliza las categorías digitales de la sección 9. No se asigna `LIQUIDADA` automáticamente por el hecho de que el registro pase la validación.
-
-La vista permite volver de la revisión a la edición sin perder los datos y cancelar antes del envío. El botón de confirmación muestra `Registrar transferencia simulada`, para distinguir el registro académico de una transferencia real.
-
-#### 16.1.3 Reglas compartidas de interacción
-
-- Ambas experiencias muestran de forma permanente que son simulaciones académicas, mantienen diseños diferenciados y utilizan el mismo servicio de procesamiento.
-- Los identificadores y las fechas son visibles antes de confirmar. Los identificadores pueden capturarse o generarse con UUID y prefijos `ATM-MAN-` o `SPEI-MAN-`; la base de datos verifica su unicidad. La fecha puede inicializarse con la hora actual en UTC-06:00 y editarse antes del envío. Estos valores son metadatos explícitos de una nueva operación simulada, no imputaciones de un registro incompleto.
-- El resultado del pipeline y el estado bancario simulado se muestran por separado en el comprobante. No se presenta una fila en cuarentena como operación aceptada ni una fila limpia como evidencia de movimiento real de dinero.
-- Los errores de captura aparecen junto al control correspondiente y conservan los datos introducidos. Los rechazos del pipeline muestran sus motivos y el identificador de ejecución.
-- Cada comprobante se genera a partir del resultado confirmado de la base de datos. No se presenta un mensaje de éxito mientras la operación siga en proceso.
-- Las pantallas se adaptan a escritorio y móvil sin ocultar controles esenciales ni depender de botones decorativos sin función.
-
-### 16.2 Referencia estadística para una sola transacción
-
-El ingreso manual utiliza los parámetros guardados de una ejecución de archivos completada, seleccionada como referencia para la fuente. Se registra su identificador y debe utilizar la misma versión de reglas y tasa de conversión que el envío actual. No se ajustan parámetros con una única fila ni se incorpora esa fila al cálculo de la referencia.
-
-- La imputación utiliza la mediana guardada del grupo correspondiente y exige el mínimo de cinco observaciones elegibles establecido en la sección 7. No se cambia de grupo para obtener un valor de respaldo.
-- El capping utiliza los límites guardados para `(fuente, tipo_operacion)`. Si la referencia no aplicó capping por tamaño insuficiente o IQR cero, se conserva el monto analítico y se registra esa condición.
-- Min-Max utiliza el mínimo y máximo analíticos de la referencia. Para un rango no constante, calcular la fórmula y limitar el resultado a `[0, 1]`; si el valor excede el rango de referencia, registrar `FUERA_RANGO_REFERENCIA` y conservar el valor previo al escalamiento.
-- Si el rango de referencia es constante y el monto analítico coincide con ese valor, asignar 0. Si no coincide, enviar a cuarentena como `REFERENCIA_ESTADISTICA_INSUFICIENTE`, porque esa referencia no permite escalar el nuevo monto de forma informativa.
-- La segmentación utiliza los cortes guardados de la referencia y los intervalos establecidos en la sección 10.3.
-- Si falta una referencia compatible o los parámetros del grupo requeridos, enviar la transacción a cuarentena como `REFERENCIA_ESTADISTICA_INSUFICIENTE`. No generar escalas o segmentos arbitrarios.
-- Las consultas de saldo son la excepción determinista: monto analítico 0, normalizado 0 y segmento `BAJO`, sin requerir referencia estadística.
-- Los conflictos, duplicados y errores básicos se resuelven antes de aplicar estadísticas. Una repetición idéntica ya almacenada no necesita recalcular sus parámetros.
-- Los rechazos manuales pueden reprocesarse después de disponer de una referencia válida. El nuevo intento conserva el vínculo al rechazo anterior y la referencia utilizada.
-
-### 16.3 Resultado del envío
-
-Después de confirmar la transacción de base de datos, mostrar uno de estos resultados: `INSERTADA`, `EN_CUARENTENA` o `YA_CARGADA`, con identificador de ejecución y motivos cuando correspondan. Una falla técnica muestra `FALLIDA` y no se presenta como rechazo de negocio ni como operación guardada.
-
-El dashboard se actualiza con los resultados confirmados. El formulario no ejecuta transferencias bancarias reales: registra datos para su procesamiento académico.
-
-### 16.4 Verificaciones de la extensión visual
-
-- Comprobar que los indicadores del dashboard coinciden con consultas a la base de datos bajo los mismos filtros y que no cuentan como insertados los lotes revertidos.
-- Enviar una transacción válida de cada fuente, una inválida y una repetida; verificar sus destinos y mensajes.
-- Comprobar que un registro ingresado por formulario no se duplica al cargarlo posteriormente en un archivo.
-- Reintentar una solicitud y comprobar que no duplica transacciones ni entradas de cuarentena.
-- Probar ingreso manual sin referencia, grupos ausentes, rango constante y valores fuera del rango de referencia.
-- Comprobar que el envío individual no modifica los parámetros ni los registros de la ejecución de referencia.
-- Verificar los recorridos diferenciados del cajero y de la transferencia digital, incluidos revisar, corregir, cancelar y confirmar; comprobar que cancelar antes del envío no crea registros.
-- Comprobar que el teclado del cajero captura importes con centavos, que la consulta de saldo usa cero y que no muestra un saldo inventado.
-- Verificar que el comprobante distingue estado bancario y resultado del pipeline, y que una transferencia en USD muestra correctamente el equivalente académico en MXN.
-- Comprobar la navegación con teclado y que los controles esenciales sean utilizables tanto en escritorio como en móvil.
+La demostración puede grabarse en un video de hasta un minuto: entrada, ejecución, etapas y comparación original/procesado. Tres diapositivas explican entrada, técnicas y resultados. El equipo explica las decisiones y limitaciones; el video muestra la ejecución.
 
 ## 17. Control de cambios y referencias
 
-Las reglas de este documento constituyen la versión 1.4 del proyecto e incluyen la carga incremental de archivos, el control global de duplicados, las versiones del catálogo, el reprocesamiento de cuarentena, el dashboard de control con tablas, filtros, detalle y gráficas, y dos experiencias visuales de ingreso manual: un simulador de cajero ATM y una transferencia digital con diseño de app bancaria. Toda modificación se registra mediante un commit identificable y actualiza la versión del documento, la justificación técnica y las pruebas afectadas. Los parámetros y la versión de las reglas utilizados en cada ejecución se conservan para reproducir sus resultados.
+Versión 1.5: alcance concentrado en archivos, ETL, cuarentena, SQLite y demostración. Cada ejecución registra versiones de reglas y proceso y sus parámetros. Los materiales históricos anteriores se conservan en el respaldo local, fuera del proyecto activo.
 
-Referencias: `GUIA_LINEAMIENTOS_PROYECTO_ALUMNOS.pdf`, páginas 1 a 3; `catalogo_cuentas.csv`; `transacciones_atm.xlsx`, hoja `transacciones_atm`; y `transferencias_digitales.json`. Los conteos proceden del análisis de los archivos recibidos el 23 de octubre de 2026.
+Referencias: guía del profesor, puntos 4 y 6; aclaración transcrita del 27 de octubre de 2026; archivos originales de datasets/ y evidencia en entrega/.

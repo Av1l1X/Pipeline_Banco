@@ -5,8 +5,7 @@ from pathlib import Path
 from xml.sax.saxutils import escape
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_LEFT
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Flowable, Image
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Flowable
 from reportlab.lib.pagesizes import A4
 
 TEAL=colors.HexColor('#087f79'); NAVY=colors.HexColor('#15363d'); LIGHT=colors.HexColor('#edf5f3'); AMBER=colors.HexColor('#c67c38')
@@ -27,7 +26,7 @@ class Diagram(Flowable):
     def __init__(self):Flowable.__init__(self);self.width=490;self.height=410
     def draw(self):
         c=self.canv
-        boxes=[('Fuentes ATM + DIGITAL / simuladores',370),('Lectura y perfil inicial',320),('Tipos, fechas, USD/MXN y duplicados',270),('Catálogo y detección de huérfanos',220),('Mediana / IQR 1.5 / MinMax / terciles',170),('Validación y separación de resultados',120),('Transacción SQLite: commit o rollback',70),('Dashboard y evidencia por ejecución',20)]
+        boxes=[('Archivos ATM XLSX/CSV + DIGITAL JSON',370),('Lectura y perfil inicial',320),('Tipos, fechas, USD/MXN y duplicados',270),('Catálogo y detección de huérfanos',220),('Mediana / IQR 1.5 / MinMax / terciles',170),('Validación y separación de resultados',120),('Transacción SQLite: commit o rollback',70),('Dashboard y evidencia por ejecución',20)]
         for i,(label,y) in enumerate(boxes):
             c.setFillColor(LIGHT if i%2 else colors.HexColor('#e0f0eb'));c.setStrokeColor(TEAL);c.roundRect(5,y,345,34,7,fill=1,stroke=0)
             c.setFillColor(NAVY);c.setFont('Helvetica',10);c.drawCentredString(177,y+13,label)
@@ -45,14 +44,14 @@ def main():
     def heading(k,title):s.extend([p(k,'SmallLab'),p(title,'TitleLab')])
     heading('INGENIERÍA DE DATOS · UNIDAD 2 · TECNM CAMPUS COLIMA','Pipeline ETL bancario<br/>con zona de cuarentena')
     s.append(p('Reporte técnico de integración y entrega','SubLab'))
-    s.append(p('Equipo: <b>Avilix · Maki · Leo</b><br/>Fuentes: cajeros ATM y transferencias digitales.<br/>Corte de preparación: 26 de octubre de 2026.'))
+    s.append(p('Equipo: <b>Avilix · Maki · Leo</b><br/>Fuentes: cajeros ATM y transferencias digitales.<br/>Corte de preparación: 27 de octubre de 2026.'))
     s.append(table([['Responsable','Especialidad'],['Maki','Perfilado, faltantes, duplicados y outliers'],['Avilix','Integración, transformación, orquestación e interfaces'],['Leo','Pydantic, cuarentena, persistencia y resiliencia']],[90,400]))
     s.append(Spacer(1,20));s.append(p('Resultado reproducible','SubLab'))
     s.append(table([['Fuente','Leídas','Limpias','Cuarentena','Omitidas'],['ATM',620,568,32,20],['DIGITAL',600,504,96,0],['TOTAL',1220,1072,128,20]],[110,90,90,100,100]))
     s.append(p('La conciliación es 1,220 = 1,072 + 128 + 20. Los rechazos se conservan; las omisiones corresponden a duplicados exactos. La base entregable contiene solo las fuentes originales, sin las operaciones manuales de prueba.'))
     s.append(p('Repositorio: https://github.com/Av1l1X/Pipeline_Banco<br/>Base: entrega/pipeline_banco.sqlite<br/>Evidencia detallada: entrega/resultados.json','SmallLab'))
     s.append(PageBreak());heading('01 / ARQUITECTURA','Un solo recorrido de datos')
-    s.append(Diagram());s.append(p('La validación temprana impide que importes o claves corruptas contaminen los parámetros estadísticos. Los formularios utilizan parámetros de un lote previo de su fuente. La validación final comprueba las variables analíticas antes de persistir.'))
+    s.append(Diagram());s.append(p('La validación temprana impide que importes o claves corruptas contaminen los parámetros estadísticos. La validación final comprueba las variables analíticas antes de persistir.'))
     s.append(p('El catálogo CSV se valida como snapshot completo. Se conserva la versión aplicada a cada registro; los huérfanos van a cuarentena. Las filas omitidas también tienen bitácora y forman parte de la conciliación.'))
     s.append(p('El diagrama editable está en docs/DIAGRAMA.md. El encabezado de la guía dice “6 fases”, pero enumera siete; esta implementación cubre también la carga transaccional de la fase 7.','SmallLab'))
     s.append(PageBreak());heading('02 / DIAGNÓSTICO Y FALTANTES','Medir antes de transformar')
@@ -68,7 +67,7 @@ def main():
     s.append(p('Se imputa mediana por grupo con al menos cinco valores observados válidos. Es menos sensible a colas y extremos que la media. Se guardan ambas medidas y el tamaño del grupo para auditar la elección. Si no hay base suficiente, se rechaza; no se inventa un importe.'))
     s.append(p('Las categorías faltantes se sustituyen por DESCONOCIDO o SIN_CONCEPTO. El correo es opcional, pero si está presente debe ser válido. Una consulta de saldo tiene importe cero; ese cero no significa un saldo bancario real.'))
     s.append(PageBreak());heading('03 / TRANSFORMACIÓN','Conservar el origen, explicar el cambio')
-    s.append(table([['Regla','Aplicación'],['Dinero','Decimal; USD × 19.50; HALF_UP a dos decimales. Se conserva importe y moneda originales.'],['Fechas','Parseo por fuente, fecha ISO YYYY-MM-DD y fecha/hora UTC-06:00. Fechas imposibles o ambiguas se rechazan.'],['IQR','Q1 y Q3 con interpolación lineal; límites Q1 − 1.5 IQR y Q3 + 1.5 IQR, inferior no negativo. No se ajusta con importes imputados.'],['Capping','Solo cambia monto_analitico_mxn. monto_mxn permanece como importe de operación. Con menos de cinco observaciones o IQR cero no se recorta.'],['MinMax','(x − mínimo)/(máximo − mínimo), por fuente y operación. Grupo constante: cero. Manual fuera de rango se acota y marca; referencia constante incompatible se rechaza.'],['Segmentos','Terciles del grupo: BAJO hasta primer corte, MEDIO hasta segundo, ALTO después. Consulta de saldo: BAJO.']],[85,405]))
+    s.append(table([['Regla','Aplicación'],['Dinero','Decimal; USD × 19.50; HALF_UP a dos decimales. Se conserva importe y moneda originales.'],['Fechas','Parseo por fuente, fecha ISO YYYY-MM-DD y fecha/hora UTC-06:00. Fechas imposibles o ambiguas se rechazan.'],['IQR','Q1 y Q3 con interpolación lineal; límites Q1 − 1.5 IQR y Q3 + 1.5 IQR, inferior no negativo. No se ajusta con importes imputados.'],['Capping','Solo cambia monto_analitico_mxn. monto_mxn permanece como importe de operación. Con menos de cinco observaciones o IQR cero no se recorta.'],['MinMax','(x − mínimo)/(máximo − mínimo), por fuente y operación. Grupo constante: cero.'],['Segmentos','Terciles del grupo: BAJO hasta primer corte, MEDIO hasta segundo, ALTO después. Consulta de saldo: BAJO.']],[85,405]))
     s.append(Spacer(1,15));s.append(p('Efecto en los datos aceptados','SubLab'))
     s.append(p(f"{d['outliers']} registros se marcaron como outliers; {d['imputados']} registros registraron cambios en la etapa de imputación. Esta última cifra no cuenta las normalizaciones deterministas realizadas antes por los validadores."))
     s.append(table([['Segmento','Registros'],*[[k,d['segmentos'][k]] for k in ('BAJO','MEDIO','ALTO')]],[245,245]))
@@ -80,22 +79,19 @@ def main():
     s.append(p('SQLite contiene transacciones_limpias y cuarentena_errores, además de ejecuciones, catálogo versionado, evidencia y bitácoras. Los importes Decimal se guardan como texto exacto dentro del payload JSON. La carga de filas, cuarentena y evidencias se confirma de forma atómica. Ante fallo se revierte y queda una ejecución FALLIDA.'))
     s.append(p('La entrega pasó PRAGMA integrity_check y foreign_key_check. La unicidad fuente/ID y la huella de origen impiden recargas duplicadas. Una carga idéntica devuelve el resumen previo; un ID con contenido distinto se desvía a cuarentena.'))
     s.append(p('Pruebas automatizadas y de interfaz','SubLab'))
-    s.append(p('50 pruebas aprobadas: validación, fechas ambiguas, números no finitos, CLABE/correo, huérfanos, duplicación, referencias manuales, rollback, catálogos, filtros y archivos ilegibles. Se conserva la salida en entrega/pruebas.txt. Hay una advertencia de deprecación del adaptador httpx de TestClient; no es un fallo de prueba.'))
-    s.append(p('Verificación manual del navegador: teclado ATM, corrección, revisión, confirmación e inserción; transferencia con CLABE inválida y comprobante EN_CUARENTENA con motivo visible. Los datos de estas pruebas están en la base de trabajo, no en la base entregable.'))
-    s.append(PageBreak());heading('05 / EXTRAS Y OPERACIÓN','Interfaz para observar el pipeline')
-    s.append(p('El dashboard muestra limpias, cuarentena, duplicados, cargas, filtros, gráficas y detalles de trazabilidad. También admite archivos nuevos y reprocesamientos. Las interfaces ATM y digital son distintas, pero ambas escriben mediante la misma API y reglas.'))
-    img=Path(__file__).resolve().parents[1]/'docs/capturas/atm.png'
-    if img.exists():
-        from PIL import Image as PILImage
-        w,h=PILImage.open(img).size;s.append(Image(str(img),width=min(490,340*w/h),height=min(340,490*h/w)))
-    s.append(p('Captura de prueba local. Los identificadores y conteos de la interfaz pueden incluir demostraciones; el resumen oficial proviene de la base entregable.','SmallLab'))
-    s.append(p('Inicio: instalar requirements.txt con Python 3.12 y ejecutar iniciar.cmd. Abrir http://127.0.0.1:8765. La terminal mantiene el servidor; Ctrl+C lo detiene. Los pasos completos y comandos de reproducción están en README.md.'))
-    s.append(p('El servicio es local y usa un solo proceso. No implementa autenticación ni una operación bancaria real. Las consultas cargan filas en memoria y están orientadas al tamaño académico de los datos.'))
+    s.append(p('49 pruebas aprobadas: validación, fechas ambiguas, números no finitos, CLABE/correo, huérfanos, duplicación, vista previa, carga personalizada, aislamiento de sesiones, rollback, catálogos, filtros y archivos ilegibles. Se conserva la salida en entrega/pruebas.txt. Hay una advertencia de deprecación del adaptador httpx de TestClient; no es un fallo de prueba.'))
+    s.append(PageBreak());heading('05 / DEMOSTRACIÓN','Entrada, proceso y resultados')
+    s.append(p('La página tiene tres vistas: Entrada, Proceso y Resultados. Permite seleccionar archivos propios, revisar una muestra sin ingerirlos y procesar primero el catálogo y después los lotes. Los nombres de archivo pueden variar; sus columnas deben corresponder al esquema seleccionado. Las sesiones vacías se conservan en outputs/sesiones.'))
+    s.append(p('Las etapas muestran conteos de evidencia_lotes después de confirmar los resultados: lectura y diagnóstico, duplicados exactos, validación, cruce de catálogo, imputación, transformación y persistencia. No se simula progreso. Las cantidades de etapas no se suman: describen poblaciones distintas.'))
+    s.append(p('El dashboard incluye gráficas de destino, motivos y segmentos, filtros, historial y comparación original/procesado. El menú es compacto y plegable. El ingreso individual y los simuladores se retiraron del alcance. Los archivos bancarios siguen siendo las fuentes del ejercicio.'))
+    s.append(p('Video de hasta un minuto: muestra original, ejecución, etapas, indicadores y un detalle. El guion está en docs/GUION_VIDEO.md. El video se graba después de ensayar el recorrido.'))
+    s.append(p('Inicio: instalar dependencias con Python 3.12, ejecutar iniciar.cmd y abrir http://127.0.0.1:8765. Crear una sesión vacía conserva las bases anteriores y limpia la cola de selección. La selección de sesión se mantiene mientras el servidor está activo.'))
+    s.append(p('Servicio local de un solo proceso y volumen académico. El estado bancario se conserva separado del resultado de calidad. Una fila limpia no acredita un movimiento bancario exitoso.'))
     s.append(PageBreak());heading('06 / ENTREGA Y DEFENSA','Evidencias para revisar y reproducir')
-    s.append(table([['Requisito de la guía','Evidencia'],['Reglas y mockup','REGLAS_DE_NEGOCIO.md y docs/DIAGRAMA.md'],['Calidad antes/después','src/calidad.py, src/limpieza.py; perfiles en resultados.json'],['Integración y transformación','src/integracion.py, src/transformacion.py, src/pipeline.py'],['Pydantic y cuarentena','src/validation.py; tabla cuarentena_errores'],['Persistencia y resiliencia','src/persistence.py; tests/; entrega/pruebas.txt'],['Repositorio, BD y reporte','GitHub; pipeline_banco.sqlite; este PDF'],['Defensa individual','docs/DEFENSA.md; explicación en vivo de los tres integrantes']],[160,330]))
+    s.append(table([['Requisito de la guía','Evidencia'],['Reglas y mockup','REGLAS_DE_NEGOCIO.md y docs/DIAGRAMA.md'],['Calidad antes/después','src/calidad.py, src/limpieza.py; perfiles en resultados.json'],['Integración y transformación','src/integracion.py, src/transformacion.py, src/pipeline.py'],['Pydantic y cuarentena','src/validation.py; tabla cuarentena_errores'],['Persistencia y resiliencia','src/persistence.py; tests/; entrega/pruebas.txt'],['Repositorio, BD y reporte','GitHub; pipeline_banco.sqlite; este PDF'],['Defensa individual','docs/GUION_VIDEO.md; explicación en vivo de los tres integrantes']],[160,330]))
     s.append(Spacer(1,16));s.append(p('Fuentes y reproducibilidad','SubLab'))
     s.append(p('1. GUIA_LINEAMIENTOS_PROYECTO_ALUMNOS.pdf, pp. 1–3, documento proporcionado por el docente: objetivo, fases, entregables y rúbrica.<br/>2. datasets/catalogo_cuentas.csv, datasets/transacciones_atm.xlsx y datasets/transferencias_digitales.json: fuentes originales recibidas.<br/>3. entrega/resultados.json y pipeline_banco.sqlite: mediciones producidas por este código. SHA256.json identifica los archivos usados.'))
-    s.append(p('El CSV ATM de la raíz se conserva del aporte previo; los resultados aquí usan el XLSX original recibido. No se mezclan ambas versiones de la misma fuente.'))
+    s.append(p('Las fuentes canónicas están en datasets/. Las copias históricas se retiraron de la raíz para evitar cargar versiones distintas por error.'))
     s.append(p('Para reproducir: python -m scripts.preparar_entrega --salida outputs/reproduccion. El comando se niega a sobreescribir una base existente. Después ejecutar scripts/generar_reporte.py con --carpeta outputs/reproduccion.'))
     s.append(p('Las firmas reales de Avilix, Maki y Leo en las reglas y la defensa oral son acciones personales pendientes de los integrantes. Este reporte no simula firmas ni acredita una exposición que no se ha realizado.'))
     def footer(c,doc):

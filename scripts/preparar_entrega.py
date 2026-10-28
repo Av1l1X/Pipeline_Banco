@@ -4,7 +4,6 @@ import hashlib
 import json
 import sqlite3
 import subprocess
-import sys
 from pathlib import Path
 from collections import Counter
 from src.pipeline import ejecutar_lote
@@ -28,6 +27,9 @@ def main():
         meta=next(v for v in evidence.values() if v['fuente']==source)
         missing[source]=meta['perfil_inicial']['metricas_por_campo']
     summary=dict(resultados=results,integridad='ok',motivos=dict(reasons),outliers=sum(bool(r['es_outlier']) for r in clean),imputados=sum(bool(r.get('_cambios_imputacion')) for r in clean),segmentos=dict(Counter(r['segmento'] for r in clean)),faltantes=missing,evidencia=evidence,commit_codigo=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip())
+    summary['arbol_modificado']=bool(subprocess.check_output(['git','status','--porcelain'],text=True).strip())
+    summary['version_reglas']='1.5'
+    summary['version_proceso']='2.1'
     c.close()
     (out/'resultados.json').write_text(_json_dumps(summary),encoding='utf-8')
     sources=[root/'datasets'/n for n in ('catalogo_cuentas.csv','transacciones_atm.xlsx','transferencias_digitales.json')]

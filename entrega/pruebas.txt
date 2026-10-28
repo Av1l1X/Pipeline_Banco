@@ -1,8 +1,6 @@
-..................................................                       [100%]
-============================== warnings summary ===============================
-.venv\Lib\site-packages\fastapi\testclient.py:1
-  C:\IA\Pipeline_Banco\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
-    from starlette.testclient import TestClient as TestClient  # noqa
-
--- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-50 passed, 1 warning in 6.55s
+Verificacion del 27 de octubre de 2026
+Comando: .venv\Scripts\python.exe -m pytest -q
+49 passed, 1 warning in 9.66s
+Advertencia: StarletteDeprecationWarning del adaptador httpx de TestClient.
+Incluye nombres de archivo personalizados, vista previa sin ingestion, formatos invalidos, aislamiento de sesiones y conciliacion de resultados.
+Interfaz: carga de catalogo, XLSX y JSON; navegacion plegable; resultados 1072/128/20; filtro DIGITAL 504/96/0; sin errores de consola.

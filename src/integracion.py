@@ -1,7 +1,7 @@
 """Puente entre modelos de Leo y el esquema común de integración."""
 from decimal import Decimal, ROUND_HALF_UP
 from src.lectura import FIELDS
-from src.persistence import _json_dumps, _source_fingerprint
+from src.persistence import _source_fingerprint
 from src.validation import validate_atm_record_detailed, validate_digital_record_detailed
 
 TASA = Decimal('19.50')

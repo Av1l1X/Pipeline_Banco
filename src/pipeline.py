@@ -1,10 +1,7 @@
-"""Orquestación: archivos y formularios recorren el mismo proceso auditable."""
-import hashlib
+"""Orquestación: archivos recorren un proceso auditable."""
 import json
 import uuid
 from collections import defaultdict
-from decimal import Decimal
-from pathlib import Path
 from threading import RLock
 from src.calidad import perfilar, comparar_calidad
 from src.catalogo import activar_catalogo, obtener_catalogo
@@ -12,17 +9,17 @@ from src.duplicados import separar_exactos
 from src.integracion import normalizar, cruzar_catalogo, rechazo, money
 from src.lectura import leer_fuente
 from src.limpieza import imputar, aplicar_iqr
-from src.persistence import initialize_database, persist_batch, build_load_identity, _json_dumps
+from src.persistence import initialize_database, persist_batch, build_load_identity
 from src.transformacion import escalar_segmentar
 
-RULES='1.4'; PROCESS='2.0'; LOCK=RLock()
+RULES='1.5'; PROCESS='2.1'; LOCK=RLock()
 
 
 def _error(item):
     return rechazo(item['original_json'],item['motivo'],item.get('campo',''),fase='TRANSFORMACION')
 
 
-def _run(rows,source,db,metadata,identity,reference=None):
+def _run(rows,source,db,metadata,identity):
     version,catalog=obtener_catalogo(db)
     metadata.update(catalog_version=version,rules_version=RULES,process_version=PROCESS)
     before=perfilar([r if isinstance(r,dict) else {'_valor':r} for r in rows],source)
@@ -53,21 +50,16 @@ def _run(rows,source,db,metadata,identity,reference=None):
             else:bad.append(rechazo(r,'ID_DUPLICADO_CONFLICTIVO'))
     finally:conn.close()
     joined=cruzar_catalogo(new,catalog);bad.extend(joined['rechazados']);eligible=joined['candidatos']
-    if metadata.get('origen')=='MANUAL':
-        if reference is None:
-            pending=[r for r in eligible if r['tipo_operacion']!='CONSULTA_SALDO']
-            bad.extend(rechazo(r,'REFERENCIA_ESTADISTICA_INSUFICIENTE') for r in pending)
-            eligible=[r for r in eligible if r['tipo_operacion']=='CONSULTA_SALDO'];reference={}
-    filled=imputar(eligible,reference.get('imputacion',{}) if reference is not None else None)
+    filled=imputar(eligible)
     bad.extend(_error(r) for r in filled['rechazados'])
     for r in filled['candidatos']:
         r['monto_mxn']=money(r['monto_mxn']);r['version_catalogo']=version
         r['transformaciones'].extend(r.get('_cambios_imputacion',[]))
         if source=='ATM':r['comision_aplicada']=money(r['comision_aplicada'])
-    capped=aplicar_iqr(filled['candidatos'],reference.get('iqr',{}) if reference is not None else None)
+    capped=aplicar_iqr(filled['candidatos'])
     for r in capped['candidatos']:
         r['monto_analitico_mxn']=money(r['monto_analitico_mxn'])
-    scaled=escalar_segmentar(capped['candidatos'],reference.get('escala',{}) if reference is not None else None)
+    scaled=escalar_segmentar(capped['candidatos'])
     bad.extend(_error(r) for r in scaled['rechazados'])
     for r in scaled['candidatos']:
         r['monto_analitico_mxn']=money(r['monto_analitico_mxn'])
@@ -84,6 +76,15 @@ def _run(rows,source,db,metadata,identity,reference=None):
     after=perfilar(final_rows,source)
     metadata['perfil_final']=after
     metadata['comparacion']=comparar_calidad(before,after,dict(imputados=sum(bool(r.get('_cambios_imputacion')) for r in scaled['candidatos']),rechazados=len(bad),duplicados_omitidos=len(omitted)))
+    metadata['etapas']=[
+        {'nombre':'Lectura y diagnóstico','cantidad':len(rows),'detalle':'Filas leídas; perfil de nulos, vacíos y tipos.'},
+        {'nombre':'Duplicados exactos','cantidad':len(omitted_positions),'detalle':'Copias adicionales separadas antes de validar.'},
+        {'nombre':'Validación y normalización','cantidad':len(parsed['candidatos']),'detalle':'Candidatos con formatos válidos; fechas y divisas estandarizadas.'},
+        {'nombre':'Cruce de catálogo','cantidad':len(eligible),'detalle':'Registros nuevos con cuenta existente.'},
+        {'nombre':'Imputación','cantidad':sum(bool(r.get('_cambios_imputacion')) for r in filled['candidatos']),'detalle':'Registros con cambios en esta etapa; mediana por grupo.'},
+        {'nombre':'IQR y transformación','cantidad':len(scaled['candidatos']),'detalle':'Aceptadas con monto analítico, MinMax y segmento.'},
+        {'nombre':'Persistencia','cantidad':len(scaled['candidatos']),'detalle':f'{len(bad)} en cuarentena y {len(omitted)} omitidas. Evidencia confirmada con el lote.'}
+    ]
     metadata['omitidos']=omitted
     assert len(rows)==len(scaled['candidatos'])+len(bad)+len(omitted)
     result=persist_batch(db,source,scaled['candidatos'],bad,identity_hash=identity,metadata=metadata)
@@ -106,27 +107,7 @@ def ejecutar_lote(ruta,fuente,ruta_catalogo=None,ruta_bd='outputs/pipeline.sqlit
         return _run(content['registros'],fuente,ruta_bd,{**content['metadatos'],'file_hashes':{'archivo':content['metadatos']['hash']}},identity)
 
 
-def ejecutar_manual(solicitud,ruta_bd='outputs/pipeline.sqlite',reprocesar_ids=None):
-    with LOCK:
-        source=solicitud['fuente'];request_id=solicitud['solicitud_id']
-        if source not in ('ATM','DIGITAL') or not isinstance(request_id,str) or not request_id.strip():raise ValueError('Fuente o solicitud inválida')
-        digest=hashlib.sha256(_json_dumps(solicitud).encode()).hexdigest()
-        identity='manual:'+request_id
-        conn=initialize_database(ruta_bd);reference=None
-        try:
-            prior=conn.execute('SELECT e.datos FROM evidencia_lotes e JOIN ejecuciones x ON x.id=e.ejecucion_id WHERE x.identidad_carga=? AND x.estado="COMPLETADA"',(identity,)).fetchone()
-            if prior and json.loads(prior[0]).get('solicitud_hash')!=digest: raise ValueError('La solicitud ya existe con otros datos; usa una solicitud nueva')
-            ref=solicitud.get('referencia_ejecucion')
-            if ref:
-                row=conn.execute('SELECT e.datos FROM evidencia_lotes e JOIN ejecuciones x ON x.id=e.ejecucion_id WHERE x.id=? AND x.fuente=? AND x.estado="COMPLETADA" AND x.version_reglas=?',(ref,source,RULES)).fetchone()
-                if row:
-                    info=json.loads(row[0])
-                    if info.get('origen','ARCHIVO')=='ARCHIVO':reference=info.get('parametros')
-        finally:conn.close()
-        return _run([solicitud['datos_origen']],source,ruta_bd,dict(archivo='FORMULARIO',origen='MANUAL',offset=1,solicitud_hash=digest,referencia_ejecucion=solicitud.get('referencia_ejecucion'),reprocesar_ids=reprocesar_ids or []),identity,reference)
-
-
-def reprocesar(rejection_id,db,referencia=None,correccion=None):
+def reprocesar(rejection_id,db,correccion=None):
     with LOCK:
         conn=initialize_database(db)
         try:row=conn.execute('SELECT * FROM cuarentena_errores WHERE id=?',(rejection_id,)).fetchone()
@@ -134,6 +115,4 @@ def reprocesar(rejection_id,db,referencia=None,correccion=None):
         if not row:raise ValueError('Rechazo no encontrado')
         if row['estado_seguimiento']=='RESUELTA':raise ValueError('Este rechazo ya está resuelto')
         saved=json.loads(row['original_record']);raw=correccion if correccion is not None else saved.get('original_json',saved)
-        if saved.get('origen_ingreso')=='MANUAL':
-            return ejecutar_manual(dict(solicitud_id=str(uuid.uuid4()),fuente=row['fuente'],datos_origen=raw,referencia_ejecucion=referencia),db,[rejection_id])
         return _run([raw],row['fuente'],db,dict(archivo='REPROCESO',offset=1,reprocesar_ids=[rejection_id]),'reproceso:'+str(uuid.uuid4()))
