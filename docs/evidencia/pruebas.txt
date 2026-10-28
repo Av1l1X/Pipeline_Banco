@@ -1,0 +1,7 @@
+Verificacion del 28 de octubre de 2026
+Comando: .venv\Scripts\python.exe -m pytest -q -p no:cacheprovider
+49 passed, 1 warning in 15.19s
+Advertencia: StarletteDeprecationWarning del adaptador httpx de TestClient.
+Incluye nombres de archivo personalizados, vista previa sin ingestion, formatos invalidos, aislamiento de sesiones y conciliacion de resultados.
+La prueba de archivos ilegibles se encuentra ahora en tests/test_api.py.
+No se generaron capturas. El primer intento restringido no pudo crear carpetas temporales; la ejecucion autorizada posterior completo las 49 pruebas.

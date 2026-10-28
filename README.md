@@ -11,7 +11,7 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-lock.txt
 ```
 
-Ejecuta `iniciar.cmd` o, desde la carpeta del proyecto:
+Desde la carpeta del proyecto, ejecuta:
 
 ```powershell
 .\.venv\Scripts\python.exe -m uvicorn src.api:app --host 127.0.0.1 --port 8765
@@ -47,12 +47,15 @@ Desde consola, en una base separada:
 
 ## Exposición y evidencia
 
+Según los puntos 5 y 6 de la guía, la entrega final es el enlace al repositorio Git, `entrega/pipeline_banco.sqlite` y `entrega/REPORTE_FINAL.pdf`. El repositorio incluye reglas de negocio, diagrama, código y pruebas de datos corruptos y rollback. La presentación y el video indicados posteriormente por el profesor se preparan aparte; aún deben grabarse/exponerse.
+
 - `docs/GUION_VIDEO.md`: recorrido de hasta un minuto y reparto de exposición.
 - `docs/DIAGRAMA.md`: flujo editable.
 - `REGLAS_DE_NEGOCIO.md`: reglas 1.5.
 - `docs/CONTRATO_DATOS.md`: módulos, campos y API.
-- `entrega/guias/`: explicación por integrante.
-- `entrega/`: base, reporte, resultados, huellas y pruebas.
+- `docs/guias/`: explicación por integrante.
+- `entrega/`: únicamente la base SQLite y el reporte PDF requeridos.
+- `docs/evidencia/`: resultados, huellas y salida de las pruebas que respaldan el reporte.
 
 Pruebas y reproducción en una carpeta nueva:
 
@@ -63,3 +66,5 @@ Pruebas y reproducción en una carpeta nueva:
 ```
 
 No sobrescribe una entrega existente. MCAR/MAR son hipótesis operativas, no causalidad demostrada. El servicio está diseñado para uso local, un proceso y el volumen académico del proyecto.
+
+La reproducción guarda JSON y huellas en `outputs/reproduccion_evidencia/`, separados de la base y el PDF. Ambos scripts aceptan `--evidencia` para elegir otra carpeta. Las guías se regeneran con `python scripts/generar_guias.py` usando el entorno del proyecto.

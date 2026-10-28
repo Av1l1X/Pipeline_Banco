@@ -3,5 +3,5 @@
   "datasets\\transacciones_atm.xlsx": "cc14c30640e94462a737900eff16d1a1450b34ea59f38dee7d3d9c68af6fce25",
   "datasets\\transferencias_digitales.json": "8cb8ad47ad95533afe3df4640cb446b5e6d8f5a0b110d4aac35df5712ef68027",
   "entrega\\pipeline_banco.sqlite": "7835a664ef4a273d64a31045608acde09796e60c2b43bcacd9bd50d2221450e3",
-  "entrega\\resultados.json": "91221279a8c4e8b36ccc5b8d203e01e1caa35687978fa283e86752cf846e55fe"
+  "docs\\evidencia\\resultados.json": "91221279a8c4e8b36ccc5b8d203e01e1caa35687978fa283e86752cf846e55fe"
 }

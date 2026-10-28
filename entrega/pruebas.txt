@@ -1,6 +1,0 @@
-Verificacion del 27 de octubre de 2026
-Comando: .venv\Scripts\python.exe -m pytest -q
-49 passed, 1 warning in 9.66s
-Advertencia: StarletteDeprecationWarning del adaptador httpx de TestClient.
-Incluye nombres de archivo personalizados, vista previa sin ingestion, formatos invalidos, aislamiento de sesiones y conciliacion de resultados.
-Interfaz: carga de catalogo, XLSX y JSON; navegacion plegable; resultados 1072/128/20; filtro DIGITAL 504/96/0; sin errores de consola.

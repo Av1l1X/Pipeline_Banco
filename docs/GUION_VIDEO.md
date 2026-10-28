@@ -1,6 +1,6 @@
 # Video de hasta un minuto
 
-Preparación: iniciar.cmd; navegador a 100 %, ventana maximizada, cerrar notificaciones. Crear una sesión vacía y seleccionar los archivos antes de grabar. No hace falta narrar mientras se reproduce: el equipo explica las diapositivas después. El video aún debe grabarse; este documento es su guion.
+Preparación: iniciar el servidor con el comando del README; navegador a 100 %, ventana maximizada, cerrar notificaciones. Crear una sesión vacía y seleccionar los archivos antes de grabar. No hace falta narrar mientras se reproduce: el equipo explica las diapositivas después. El video aún debe grabarse; este documento es su guion.
 
 | Tiempo | Acción | Qué demuestra |
 |---|---|---|

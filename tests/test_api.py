@@ -65,3 +65,9 @@ def test_preview_does_not_ingest_and_rejects_bad_files(tmp_path):
     for source,name,data in [('ATM','x.csv',b'wrong,headers\n1,2'),('DIGITAL','x.json',b'[]'),('DIGITAL','x.json',b'{}'),('DIGITAL','x.txt',b'[]'),('CATALOGO','x.csv',b'')]:
         assert upload(client,source,name,data,'/api/archivos/vista-previa').status_code==422
     assert client.get('/api/control').json()['resumen']['limpias']==0
+
+
+def test_unreadable_uploads_are_controlled(tmp_path):
+    c=TestClient(create_app(tmp_path/'upload.sqlite'))
+    for source,name,data in [('ATM','broken.xlsx',b'not a workbook'),('DIGITAL','bad.json',b'[NaN]'),('DIGITAL','bad.json',b'not json')]:
+        assert c.post('/api/cargas',data={'fuente':source},files={'archivo':(name,data)}).status_code==422

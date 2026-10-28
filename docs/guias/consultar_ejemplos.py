@@ -4,14 +4,14 @@ ROOT=Path(__file__).resolve().parents[2]
 def main():
  role=sys.argv[1].lower() if len(sys.argv)>1 else ''
  if role not in {'maki','avilix','leo'}:
-  raise SystemExit('Uso: python entrega/guias/consultar_ejemplos.py maki|avilix|leo')
+  raise SystemExit('Uso: python docs/guias/consultar_ejemplos.py maki|avilix|leo')
  with sqlite3.connect((ROOT/'entrega/pipeline_banco.sqlite').as_uri()+'?mode=ro',uri=True) as db:
   db.row_factory=sqlite3.Row
   def registro(ident):
    row=db.execute('SELECT payload FROM transacciones_limpias WHERE id_transaccion=?',(ident,)).fetchone()
    return json.loads(row['payload'])
   atm=registro('ATM-TX-00034');digital=registro('SPEI-2026-00003')
-  evidence=json.loads((ROOT/'entrega/resultados.json').read_text(encoding='utf-8'))
+  evidence=json.loads((ROOT/'docs/evidencia/resultados.json').read_text(encoding='utf-8'))
   if role=='maki':
    result={'ejemplo_imputacion':atm,'ejemplo_iqr':digital['parametros_iqr'],'evidencia_estadistica':{k:{f:v[f] for f in ('comparacion','parametros') if f in v} for k,v in evidence['evidencia'].items()}}
   elif role=='avilix':
